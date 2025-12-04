@@ -6,7 +6,7 @@ const PIECE_IMAGES: any = {
   r: { w: "/pieces/wR.svg", b: "/pieces/bR.svg" },
   n: { w: "/pieces/wN.svg", b: "/pieces/bN.svg" },
   b: { w: "/pieces/wB.svg", b: "/pieces/bB.svg" },
-  q: { w: "/pieces/wQ.svg", b: "/pieces/wQ.svg" },
+  q: { w: "/pieces/wQ.svg", b: "/pieces/bQ.svg" },
   k: { w: "/pieces/wK.svg", b: "/pieces/bK.svg" },
 };
 
@@ -28,12 +28,11 @@ export const ChessBoard = ({
   onMove: (from: Square, to: Square) => void;
   myColor: "white" | "black" | null;
   getMovesForSquare: (sq: Square) => Square[];
-  isMyTurn:boolean;
+  isMyTurn: boolean;
 }) => {
   const [from, setFrom] = useState<null | Square>(null);
   const [legalMoves, setLegalMoves] = useState<Square[]>([]);
 
-  // shi se moves diy depending on the turn jese white or black
   const getSquare = (i: number, j: number): Square => {
     if (myColor === "white") {
       const file = String.fromCharCode(97 + j);
@@ -46,7 +45,6 @@ export const ChessBoard = ({
     return `${file}${rank}` as Square;
   };
 
-  // black ke liy board flip kara
   const displayedBoard =
     myColor === "white"
       ? board
@@ -68,29 +66,43 @@ export const ChessBoard = ({
                 onClick={() => {
                   if (!myColor || !isMyTurn) return;
 
-                  if (!from) {
-                    if (!square) return;
-                    if (square.color !== myColor[0]) return;
-
-                    setFrom(sq);
-                    setLegalMoves(getMovesForSquare(sq));
-                  } else {
+                  // if clicking on a square with a legal move destination
+                  if (from && isLegalMove) {
                     onMove(from, sq);
                     setFrom(null);
                     setLegalMoves([]);
+                    return;
                   }
+
+                  // if clicking on a square with our own piece, select it (or deselect if same)
+                  if (square && square.color === myColor[0]) {
+                    if (from === sq) {
+                      // deselect if clicking same piece again
+                      setFrom(null);
+                      setLegalMoves([]);
+                    } else {
+                      // select new piece (allows switching without completing move)
+                      setFrom(sq);
+                      setLegalMoves(getMovesForSquare(sq));
+                    }
+                    return;
+                  }
+
+                  // if clicking on opponent's piece or empty square (and no legal move), do nothing
+                  setFrom(null);
+                  setLegalMoves([]);
                 }}
                 className={`w-16 h-16 flex items-center justify-center relative
                   ${(i + j) % 2 === 0 ? "bg-[#7a543d]" : "bg-[#e2caa3]"}
                   ${isSelected ? "outline outline-4 outline-yellow-400" : ""}
                 `}
               >
-                {/* possible moves  */}
+                {/* possible moves */}
                 {isLegalMove && !square && (
                   <div className="absolute w-5 h-5 rounded-full bg-[rgba(0,0,0,0.3)]"></div>
                 )}
 
-                {/* kaatna ka jugaad */}
+                {/* capture move highlight */}
                 {isLegalMove && square && (
                   <div className="absolute w-14 h-14 rounded-full border-4 border-[rgba(0,0,0,0.3)]"></div>
                 )}

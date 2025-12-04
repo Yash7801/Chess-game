@@ -14,51 +14,87 @@ export class GameManager {
     }
 
     addUser(socket: WebSocket) {
+        // avoid registering the same socket twice
+        if (this.users.includes(socket)) {
+            console.log("addUser: socket already registered, skipping");
+            return;
+        }
+
         this.users.push(socket);
         this.addHandler(socket);
+
+        // ensure cleanup when connection closes
+        socket.on("close", () => {
+            this.removeUser(socket);
+        });
     }
 
     removeUser(socket: WebSocket) {
-        this.users = this.users.filter(user => user != socket);
+        this.users = this.users.filter(user => user !== socket);
+
+        // Remove any game the user was part of
+        this.games = this.games.filter(game =>
+            game.player1 !== socket && game.player2 !== socket
+        );
+
+        // If the user was waiting in queue, clear it
+        if (this.pendingUser === socket) {
+            this.pendingUser = null;
+        }
+
+        // remove any lingering message listeners for safety
+        if (typeof (socket as any).removeAllListeners === "function") {
+            (socket as any).removeAllListeners("message");
+        }
     }
 
     private addHandler(socket: WebSocket) {
+        // remove previous message listeners if present
+        if (typeof (socket as any).removeAllListeners === "function") {
+            (socket as any).removeAllListeners("message");
+        }
+
         socket.on("message", (data) => {
+            try {
+                console.log("\n========== RAW MESSAGE ==========");
+                console.log(data.toString());
 
-            // 🔥🔥🔥 ADD THESE LOGS HERE (VERY TOP OF HANDLER)
-            console.log("\n========== RAW MESSAGE ==========");
-            console.log(data.toString());
+                const message = JSON.parse(data.toString());
 
-            const message = JSON.parse(data.toString());
+                if (message.type === INIT_GAME) {
+                    // User already in a game → ignore
+                    const alreadyInGame = this.games.find(
+                        g => g.player1 === socket || g.player2 === socket
+                    );
+                    if (alreadyInGame) {
+                        console.log("User already in a game, ignoring INIT_GAME");
+                        return;
+                    }
 
-            console.log("========== PARSED MESSAGE ==========");
-            console.log(message);
-            // 🔥🔥🔥 END OF LOGS
-
-            if (message.type === INIT_GAME) {
-                if (this.pendingUser) {
-                    const game = new Game(this.pendingUser, socket)
-                    this.games.push(game);
-                    this.pendingUser = null;
-                } else {
-                    this.pendingUser = socket;
+                    // Match with pending user (but not with yourself)
+                    if (this.pendingUser && this.pendingUser !== socket) {
+                        const game = new Game(this.pendingUser, socket);
+                        this.games.push(game);
+                        this.pendingUser = null;
+                    } else {
+                        this.pendingUser = socket;
+                    }
                 }
-            }
 
-            if (message.type === MOVE) {
+                if (message.type === MOVE) {
+                    console.log("========== MOVE RECEIVED ==========");
+                    console.log("payload:", message.payload);
 
-                // 🔥🔥🔥 ADD THIS LOG TOO
-                console.log("========== MOVE RECEIVED ==========");
-                console.log("payload:", message.payload);
-                // 🔥🔥🔥
+                    const game = this.games.find(
+                        game => game.player1 === socket || game.player2 === socket
+                    );
 
-                const game = this.games.find(
-                    game => game.player1 === socket || game.player2 === socket
-                );
-
-                if (game) {
-                    game.makeMove(socket, message.payload);
+                    if (game) {
+                        game.makeMove(socket, message.payload);
+                    }
                 }
+            } catch (err) {
+                console.error("Failed to handle message:", err);
             }
         });
     }

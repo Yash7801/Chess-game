@@ -26,10 +26,8 @@ export class Game {
 
     makeMove(socket: WebSocket, move: { from: string; to: string }) {
 
-        // 🔥🔥🔥 ADD LOGS HERE 🔥🔥🔥
         console.log("========== makeMove() CALLED ==========");
         console.log("move =", move);
-        // 🔥🔥🔥 END LOGS
 
         // correct turn validation
         if (this.moveCount % 2 === 0 && socket !== this.player1) return; // white move
@@ -43,10 +41,19 @@ export class Game {
 
         const opponent = socket === this.player1 ? this.player2 : this.player1;
 
-        opponent.send(JSON.stringify({
-            type: MOVE,
-            payload: move
-        }));
+        // only send if opponent connection is open
+        try {
+            if ((opponent as any).readyState === (opponent as any).OPEN) {
+                opponent.send(JSON.stringify({
+                    type: MOVE,
+                    payload: move
+                }));
+            } else {
+                console.log("Opponent socket not open, skipping send");
+            }
+        } catch (err) {
+            console.error("Failed to send move to opponent:", err);
+        }
 
         this.moveCount++;
 
