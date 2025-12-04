@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 
-const WS_URL = "ws://localhost:8080";
+const WS_URL = "wss://chess-game-1-k2df.onrender.com";
+
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 2000; // 2 seconds
 
