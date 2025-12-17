@@ -27,7 +27,7 @@ export const useSocket = () => {
         };
 
         const handleClose = () => {
-          console.log("❌ WebSocket disconnected");
+          console.log(" WebSocket disconnected");
           setIsConnected(false);
           setSocket(null);
 
@@ -40,7 +40,7 @@ export const useSocket = () => {
               connect();
             }, RECONNECT_DELAY);
           } else {
-            console.error("❌ Max reconnection attempts reached. Please refresh the page.");
+            console.error(" Max reconnection attempts reached. Please refresh the page.");
           }
         };
 

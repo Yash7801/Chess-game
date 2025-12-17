@@ -10,5 +10,6 @@ export declare class Game {
         from: string;
         to: string;
     }): void;
+    handleTimeout(timedOutColor: "white" | "black"): void;
 }
 //# sourceMappingURL=Game.d.ts.map

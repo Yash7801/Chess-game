@@ -3,7 +3,8 @@ import React, { useEffect, useState } from "react";
 interface Props {
   turn: "w" | "b";
   isGameOver: boolean;
-  initialSeconds: number; // e.g. 5 * 60
+  initialSeconds: number;
+  onTimeout: (color: "white" | "black") => void;
 }
 
 const formatTime = (s: number) => {
@@ -16,6 +17,7 @@ export const TimerPanel: React.FC<Props> = ({
   turn,
   isGameOver,
   initialSeconds,
+  onTimeout,
 }) => {
   const [whiteTime, setWhiteTime] = useState(initialSeconds);
   const [blackTime, setBlackTime] = useState(initialSeconds);
@@ -25,14 +27,26 @@ export const TimerPanel: React.FC<Props> = ({
 
     const id = setInterval(() => {
       if (turn === "w") {
-        setWhiteTime((t) => Math.max(t - 1, 0));
+        setWhiteTime((t) => {
+          if (t <= 1) {
+            onTimeout("white");
+            return 0;
+          }
+          return t - 1;
+        });
       } else {
-        setBlackTime((t) => Math.max(t - 1, 0));
+        setBlackTime((t) => {
+          if (t <= 1) {
+            onTimeout("black");
+            return 0;
+          }
+          return t - 1;
+        });
       }
     }, 1000);
 
     return () => clearInterval(id);
-  }, [turn, isGameOver]);
+  }, [turn, isGameOver, onTimeout]);
 
   return (
     <div className="bg-[#262421] text-white rounded-md p-3 text-sm">

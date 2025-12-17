@@ -19,10 +19,8 @@ export class Game {
         }));
     }
     makeMove(socket, move) {
-        // 🔥🔥🔥 ADD LOGS HERE 🔥🔥🔥
         console.log("========== makeMove() CALLED ==========");
         console.log("move =", move);
-        // 🔥🔥🔥 END LOGS
         // correct turn validation
         if (this.moveCount % 2 === 0 && socket !== this.player1)
             return; // white move
@@ -30,14 +28,25 @@ export class Game {
             return; // black move
         const result = this.board.move(move);
         if (!result) {
-            console.log("❌ INVALID CHESS MOVE:", move);
+            console.log(" INVALID CHESS MOVE:", move);
             return;
         }
         const opponent = socket === this.player1 ? this.player2 : this.player1;
-        opponent.send(JSON.stringify({
-            type: MOVE,
-            payload: move
-        }));
+        // only send if opponent connection is open
+        try {
+            if (opponent.readyState === opponent.OPEN) {
+                opponent.send(JSON.stringify({
+                    type: MOVE,
+                    payload: move
+                }));
+            }
+            else {
+                console.log("Opponent socket not open, skipping send");
+            }
+        }
+        catch (err) {
+            console.error("Failed to send move to opponent:", err);
+        }
         this.moveCount++;
         if (this.board.isGameOver()) {
             let winner = "draw";
@@ -51,6 +60,15 @@ export class Game {
             this.player1.send(msg);
             this.player2.send(msg);
         }
+    }
+    handleTimeout(timedOutColor) {
+        const winner = timedOutColor === "white" ? "black" : "white";
+        const msg = JSON.stringify({
+            type: GAME_OVER,
+            payload: { winner }
+        });
+        this.player1.send(msg);
+        this.player2.send(msg);
     }
 }
 //# sourceMappingURL=Game.js.map

@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { INIT_GAME, MOVE } from "./messages.js";
+import { INIT_GAME, MOVE, TIME_OUT } from "./messages.js";
 import { Game } from "./Game.js";
 
 export class GameManager {
@@ -23,7 +23,7 @@ export class GameManager {
         this.users.push(socket);
         this.addHandler(socket);
 
-        // ensure cleanup when connection closes
+        // ensuring cleanup when connection closes
         socket.on("close", () => {
             this.removeUser(socket);
         });
@@ -91,6 +91,19 @@ export class GameManager {
 
                     if (game) {
                         game.makeMove(socket, message.payload);
+                    }
+                }
+
+                if (message.type === TIME_OUT) {
+                    console.log("========== TIME_OUT RECEIVED ==========");
+                    console.log("payload:", message.payload);
+
+                    const game = this.games.find(
+                        game => game.player1 === socket || game.player2 === socket
+                    );
+
+                    if (game) {
+                        game.handleTimeout(message.payload.color);
                     }
                 }
             } catch (err) {

@@ -9,5 +9,5 @@ wss.on("connection", (ws) => {
     console.log("WS: new connection");
     gameManager.addUser(ws);
 
-    // keep minimal here — GameManager already installs 'close' cleanup
+    
 });

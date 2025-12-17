@@ -1,6 +1,6 @@
 import WebSocket from "ws";
 import { Chess } from "chess.js";
-import { GAME_OVER, INIT_GAME, MOVE } from "./messages.js";
+import { GAME_OVER, INIT_GAME, MOVE, TIME_OUT } from "./messages.js";
 
 export class Game {
     public player1: WebSocket;
@@ -35,7 +35,7 @@ export class Game {
 
         const result = this.board.move(move);
         if (!result) {
-            console.log("❌ INVALID CHESS MOVE:", move);
+            console.log(" INVALID CHESS MOVE:", move);
             return;
         }
 
@@ -72,5 +72,17 @@ export class Game {
             this.player1.send(msg);
             this.player2.send(msg);
         }
+    }
+
+    handleTimeout(timedOutColor: "white" | "black") {
+        const winner = timedOutColor === "white" ? "black" : "white";
+
+        const msg = JSON.stringify({
+            type: GAME_OVER,
+            payload: { winner }
+        });
+
+        this.player1.send(msg);
+        this.player2.send(msg);
     }
 }

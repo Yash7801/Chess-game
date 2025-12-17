@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "../Components/Buttons.tsx";
 import { ChessBoard } from "../Components/ChessBoard";
 import { MoveList } from "../Components/MoveList";
+import { TimerPanel } from "../Components/TimerPanel";
 import { useSocket } from "../hooks/useSocket.ts";
 import { Chess, type Square } from "chess.js";
 
 export const INIT_GAME = "init_game";
 export const MOVE = "move";
+export const GAME_OVER = "game_over";
+export const TIME_OUT = "time_out";
 
 export const Game = () => {
   const { socket, isConnected, reconnectAttempts } = useSocket();
@@ -18,23 +21,36 @@ export const Game = () => {
   const [movesList, setMovesList] = useState<string[]>([]);
   const [gameStarted, setGameStarted] = useState(false);
   const [disconnectMessage, setDisconnectMessage] = useState<string | null>(null);
+  const [gameOver, setGameOver] = useState(false);
+  const [winner, setWinner] = useState<string | null>(null);
+
+  const handleTimeout = (timedOutColor: "white" | "black") => {
+    socket?.send(
+      JSON.stringify({
+        type: TIME_OUT,
+        payload: { color: timedOutColor },
+      })
+    );
+  };
 
   // store last move WE sent to server
   const lastMoveRef = useRef<{ from: string; to: string } | null>(null);
-  const gameStateRef = useRef<{ chess: Chess; movesList: string[]; myColor: string | null }>({
+  const gameStateRef = useRef<{ chess: Chess; movesList: string[]; myColor: string | null; gameOver: boolean; winner: string | null }>({
     chess,
     movesList,
     myColor,
+    gameOver,
+    winner,
   });
 
   // keep gameStateRef in sync
   useEffect(() => {
-    gameStateRef.current = { chess, movesList, myColor };
-  }, [chess, movesList, myColor]);
+    gameStateRef.current = { chess, movesList, myColor, gameOver, winner };
+  }, [chess, movesList, myColor, gameOver, winner]);
 
-  // -------------------------------------------------------------------
+  
   // PLAYER MOVE
-  // -------------------------------------------------------------------
+  
   const handleMove = (from: string, to: string) => {
     if (!isConnected) {
       alert("Disconnected from server. Please wait for reconnection.");
@@ -64,9 +80,9 @@ export const Game = () => {
     );
   };
 
-  // -------------------------------------------------------------------
+  
   // SOCKET MESSAGE HANDLING
-  // -------------------------------------------------------------------
+  
   useEffect(() => {
     if (!socket) return;
 
@@ -103,6 +119,8 @@ export const Game = () => {
           setMovesList([]);
           setGameStarted(true);
           setDisconnectMessage(null);
+          setGameOver(false);
+          setWinner(null);
           lastMoveRef.current = null;
           break;
         }
@@ -134,6 +152,12 @@ export const Game = () => {
 
           break;
         }
+
+        case GAME_OVER: {
+          setGameOver(true);
+          setWinner(message.payload.winner);
+          break;
+        }
       }
     };
 
@@ -148,30 +172,30 @@ export const Game = () => {
     };
   }, [socket]);
 
-  // -------------------------------------------------------------------
+  
   // CONNECTION STATUS HANDLER
-  // -------------------------------------------------------------------
+  
   useEffect(() => {
     if (!isConnected && gameStarted) {
       setDisconnectMessage(
         reconnectAttempts >= 5
-          ? "❌ Connection lost. Please refresh the page."
-          : `⚠️ Disconnected... Reconnecting (attempt ${reconnectAttempts}/5)...`
+          ? " Connection lost. Please refresh the page."
+          : ` Disconnected... Reconnecting (attempt ${reconnectAttempts}/5)...`
       );
     } else if (isConnected && disconnectMessage) {
       setDisconnectMessage(null);
     }
   }, [isConnected, gameStarted, reconnectAttempts, disconnectMessage]);
 
-  // -------------------------------------------------------------------
+  
   // RENDER UI
-  // -------------------------------------------------------------------
+  
   if (!isConnected) {
     return (
       <div className="justify-center flex items-center h-screen">
         <div className="text-center">
           <div className="text-white text-2xl mb-4">
-            {reconnectAttempts >= 5 ? "❌ Connection Failed" : "🔄 Connecting..."}
+            {reconnectAttempts >= 5 ? " Connection Failed" : "🔄 Connecting..."}
           </div>
           <div className="text-gray-400">
             {reconnectAttempts >= 5
@@ -183,7 +207,7 @@ export const Game = () => {
     );
   }
 
-  const isMyTurn = myColor !== null && chess.turn() === myColor[0];
+  const isMyTurn = myColor !== null && chess.turn() === myColor[0] && !gameOver;
 
   return (
     <div className="justify-center flex">
@@ -192,6 +216,13 @@ export const Game = () => {
         {disconnectMessage && (
           <div className="bg-red-900 text-white p-3 rounded mb-4 text-center">
             {disconnectMessage}
+          </div>
+        )}
+
+        {/* GAME OVER MESSAGE */}
+        {gameOver && winner && (
+          <div className="bg-blue-900 text-white p-3 rounded mb-4 text-center">
+            Game Over! Winner: {winner === "draw" ? "Draw" : winner === myColor ? "You" : winner}
           </div>
         )}
 
@@ -227,6 +258,17 @@ export const Game = () => {
                 Play Online
               </Button>
             </div>
+
+            {gameStarted && (
+              <div className="mt-6 px-4 w-full">
+                <TimerPanel
+                  turn={chess.turn()}
+                  isGameOver={gameOver}
+                  initialSeconds={600} // 10 minutes
+                  onTimeout={handleTimeout}
+                />
+              </div>
+            )}
 
             <div className="mt-6 px-4 w-full">
               <MoveList moves={movesList} />
